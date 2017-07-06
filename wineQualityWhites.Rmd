@@ -1,0 +1,368 @@
+#白葡萄酒质量分析
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, packages}
+# 载入分析包
+library(ggplot2)
+library(knitr)
+library(dplyr)
+```
+##载入数据
+```{r echo=FALSE, Load_the_Data}
+# 读取数据
+ww <- read.csv('wineQualityWhites.csv')
+# 查看变量名
+names(ww)
+```
+该数据集包含了4898种白葡萄酒，11个量化每种酒化学成分的输入变量（X为索引值），以及一个基于感官数据的输出变量（专家评分）。
+
+##单因素分析
+```{r echo=FALSE, Univariate_Plots}
+#查看数据维度
+dim(ww) 
+#查看数据类型
+str(ww) 
+#统计摘要
+summary(ww) 
+```
+本数据包括1列索引，12个变量，4898个观测值。
+```{r echo=FALSE} 
+#绘制条形图
+ggplot(aes(x=factor(quality)),data = ww)+
+  geom_bar() 
+table(ww$quality)
+```
+观察质量评分的结果分布，图形呈现单峰型,评分6呈现最大值即出现了2198次。高评分与低评分均出现较少（每个专家将葡萄酒的品质分为0（非常差）和10（非常优秀）），为探索此白葡萄酒偏好结果需要进一步研究其它变量对质量评分的影响。
+
+
+```{r echo=FALSE}
+#直方图绘制函数
+draw_histogram <- function(feature) {
+    ggplot(data=ww, aes_string(x = feature)) + geom_histogram()
+    } 
+#调用函数绘制直方图
+draw_histogram('pH') 
+table(ww$pH)
+summary(ww$pH)
+```
+大多数葡萄酒的pH值在3-4之间，与质量评分类似呈现单峰性，中位数3.180，平均数3.188。
+pH值越低酸度越高，需要进一步了解，与酸度有关的变量是如何变化的。
+
+```{r echo=FALSE}
+draw_histogram('fixed.acidity')
+summary(ww$fixed.acidity)
+table(ww$fixed.acidity)
+```
+固定酸度介于6~8g/dm^3之间，中位数6.8g/dm^3，平均值6.855g/dm^3，近似单峰型。
+```{r echo=FALSE}
+draw_histogram('volatile.acidity')
+summary(ww$volatile.acidity)
+table(ww$volatile.acidity)
+```
+挥发性酸度介于0.21~0.32g/dm^3之间，中位数0.26/dm^3，平均值0.2782g/dm^3，近似单峰型。
+```{r echo=FALSE}
+draw_histogram('citric.acid')
+summary(ww$citric.acid)
+table(ww$citric.acid)
+```
+柠檬酸酸度介于0.27至0.39g/dm^3 之间，中位数 0.32g/dm^3 ，平均值 0.3342g/dm^3 ，近似单峰型，但在 0.49g/dm^3 处出现大量异常值。
+总体酸度呢？pH值是否与总酸度有关？
+此处使用固定酸度+挥发酸度+柠檬酸三者之和计算总酸度。
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ww$total.acid<-ww$citric.acid+ww$volatile.acidity+ww$fixed.acidity #生成新的变量
+summary(ww$total.acid)
+draw_histogram('total.acid')+
+  scale_x_continuous(limits = c(2.5,12))
+```
+
+经查阅资料，为了使葡萄酒的口感更加平衡，如果一款葡萄酒酸度不足，会让人觉得平淡乏味；当然如果酸度过高，则会给人一种尖酸锋利的口感。
+所以在综合了三种酸度变量后，得到了近似单峰型的总酸度变化，与质量评价和pH变化相似。
+```{r echo=FALSE}
+draw_histogram('residual.sugar')
+table(ww$residual.sugar)
+summary(ww$residual.sugar)
+#设置对数转换
+draw_histogram('residual.sugar')+scale_x_continuous(trans="log10")
+```
+
+有酸就有甜，研究残糖的直方图发现，分布右倾斜。为判断残糖是否影响白葡萄酒口感，从而影响白葡萄酒质量评价。
+经查阅资料发现，残余糖分源自葡萄本身的葡萄糖和果糖，在发酵过程中，没有被转化为酒精的糖分继续留在酒中，即为残糖。其中小于1克/升为干型，大于45克/升的葡萄酒被认为是甜型。样本中仅有一例达到了65.8g/dm^3 ，整体分布在1~16g/dm^3之间。
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+draw_histogram('density')+
+  scale_x_continuous(limits = c(0.985,1.005))
+summary(ww$density)
+```
+大多数白葡萄酒的密度介于0.99~1g/cm3之间，中位数为0.9937g/cm3，平均数为0.9961g/cm3。
+```{r echo=FALSE}
+draw_histogram('chlorides')
+summary(ww$chlorides)
+#设置对数转换
+draw_histogram('chlorides')+scale_x_continuous(trans="log10")
+```
+大多数白葡萄酒的氯化物含量介于0.03~0.06g/dm3之间，中位数为0.043g/dm3，平均数为0.046g/dm3。
+
+```{r echo=FALSE}
+draw_histogram('free.sulfur.dioxide')
+summary(ww$free.sulfur.dioxide)
+draw_histogram('total.sulfur.dioxide')
+summary(ww$total.sulfur.dioxide)
+draw_histogram('sulphates')
+summary(ww$sulphates)
+```
+SO2可以防止微生物生长和葡萄酒的氧化，即起到防腐剂的作用。
+游离二氧化硫、二氧化硫总量和硫酸盐三个变量均与SO2有关。
+游离二氧化硫介于20至50g/dm3之间，中位数为34g/dm3，平均数为35.31g/dm3。
+二氧化硫总量介于108至167g/dm3之间，中位数为134g/dm3，平均数为138.4g/dm3。
+硫酸盐介于0.41~0.55g/dm3之间，中位数为0.47g/dm3，平均数为0.55g/dm3。
+由于在游离SO2浓度超过50ppm时，SO2才在鼻子和味道上变得明显，从而影响主观上的专家打分，所以以此样本数据下的游离SO2分布情况，在我的分析中这三个指标对质量评价影响较小。
+
+```{r echo=FALSE}
+draw_histogram('alcohol')
+summary(ww$alcohol)
+#统计数据并降序排序
+sort(table(ww$alcohol),decreasing = TRUE) 
+ggplot(aes(x=alcohol),data = ww)+geom_histogram(binwidth = 0.1)
+```
+
+最小的酒精度数是8度，最大的是14.2度，中位数10.4度，均值10.51度。
+酒精度数表现呈现右倾斜，暂不清楚酒精度数如何与白葡萄酒质量评价如何挂钩，但白葡萄酒的密度与酒精度可能存在很强的关系。
+
+## 单因素小结
+### 该数据集数据结构小结：
+在数据集中4898种白葡萄酒，具有11个量化每种酒化学成分的输入变量特征（固定酸度、挥发性酸度、柠檬酸、残糖、氯化物、游离二氧化碳、二氧化硫总量、密度、PH值、硫酸盐、酒精），以及一个基于感官数据的输出变量特征（专家评分），其中质量评分越高白葡萄酒评价越理想。
+下一步将研究酸度、pH值和酒精度数对白葡萄酒质量评价的影响。
+其他意见：
+专家评分分布于3-9分，平均分5.878分，分数越高白葡萄酒质量越理想。
+中位pH大小为3.18。
+白葡萄酒呈酸性，大多数残糖值经测量小于45克/升。
+
+### 数据集中的主要特征是什么？
+数据集的主要特征是酒精度和质量。下一步将在双变量和多变量中进一步探寻酒精度、密度和质量评价间的关系。
+
+### 数据集中还有哪些其他功能可以帮助您调查您的兴趣特征？
+pH，酒精度，氯化物和密度可能有助于质量的评价。其中，pH可能对质量贡献最大。
+
+### 您是否从数据集中的现有变量创建了任何新变量？
+我使用固定酸度、挥发酸度、柠檬酸三者之和为白葡萄酒创建了一个变量。通过将三个变量相加来计算总体酸度。
+
+### 在您调查的功能中，是否有不寻常的分布？
+残糖分布呈右倾斜，转换后的残糖分布呈现双峰型。
+
+
+## 双因素量分析
+```{r echo=FALSE, message=FALSE, warning=FALSE, Multivariate_Plots}
+ #计算相关系数
+cor(ww[2:14],method = 'pearson')
+library(corrplot)
+#绘制相关系数图
+corrplot(cor(ww[2:14]), method="circle") 
+```
+
+分析各变量间的相关性，与质量相关性最多的是酒精度，其次是密度，pH值与总体酸度相互关联。
+
+```{r echo=FALSE}
+#生成因子
+ww$quality <- factor(ww$quality) 
+#箱线图绘制函数
+draw_boxplot <- function(feature1,feature2) {
+    ggplot(data=ww, aes_string(x = feature1,y=feature2)) + geom_boxplot()
+    } 
+draw_boxplot('quality', 'alcohol')
+#添加散点和平均值
+ggplot(ww,aes(factor(quality), alcohol)) + 
+  geom_jitter(alpha=0.3) +
+  geom_boxplot(alpha = .5,color = 'blue')+
+  stat_summary(fun.y = "mean", geom = "point", color = "red") 
+tapply(ww$alcohol,ww$quality,summary)
+```
+
+首先，从中位数观察酒精度与质量的关系，发现酒精度越高质量越好，呈正相关关系。
+
+```{r echo=FALSE}
+draw_boxplot('quality', 'density')
+#删除异常值
+draw_boxplot('quality', 'density')+
+  coord_cartesian(ylim = c(0.99, 1.005))
+tapply(ww$density,ww$quality,summary)
+```
+其次，从中位数观察密度与质量的关系，发现密度越低酒精质量越好，呈负相关关系。
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(aes(x=alcohol,y=density),data = ww)+
+  geom_point()
+ggplot(aes(x=round(alcohol*5)/5,y=density),data = ww)+
+  geom_point(alpha=1/5,position = 'jitter')+
+  scale_y_continuous(lim = c(quantile(ww$density,0.005),1))+
+  geom_line(stat = 'summary',fun.y=mean,color='red')+
+  geom_smooth(method = 'lm',color = 'blue') #绘制散点图并添加回归线
+```
+
+作图观察酒精度与密度的相关性，删掉异常值，改变透明度增加抖动并圆整，绘制密度平均线（红），回归线（蓝)。发现，随着酒精度的增加，密度是逐渐下降的，呈负相关的线性关系。
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+m1 <- lm(ww$density~ww$alcohol)
+library(memisc)
+#制作线性模型并计算拟合优度
+mtable(m1) 
+```
+基于R^2值，酒精度解释了密度差异的60%。
+```{r echo=FALSE,message=FALSE, warning=FALSE}
+draw_boxplot('quality', 'pH')
+tapply(ww$pH,ww$quality,summary)
+```
+
+对于大部分的白葡萄酒中质量与pH的关系，从中位数能够观察解释的是pH增加即酸性降低，质量评价越好。
+
+```{r echo=FALSE}
+draw_boxplot('quality', 'total.acid')
+#删除异常值
+draw_boxplot('quality', 'total.acid')+
+  coord_cartesian(ylim = c(4, 13))
+tapply(ww$total.acid,ww$quality,summary)
+```
+从创造的新变量总酸度的中位数来看，总酸度的变化带来的质量评价变化并不明显。
+```{r echo=FALSE}
+ggplot(aes(x=total.acid,y=pH),data = ww)+
+  geom_point()
+ggplot(aes(x=round(total.acid*5)/5,y=pH),data = ww)+
+  geom_point(alpha=1/10,position = 'jitter')+
+  geom_line(stat = 'summary',fun.y=median,color='red')+
+  geom_smooth(method = 'lm',color = 'blue')+
+  coord_cartesian(xlim = c(4,13))
+m1 <- lm(ww$total.acid~ww$pH)
+mtable(m1)
+```
+
+增加抖动，透明度和改变图表限制让我们看到总酸度和pH之间的轻微相关性。但基于R^2值，总酸度仅解释了pH差异的20%，不够理想。
+
+```{r echo=FALSE}
+draw_boxplot('quality', 'chlorides')
+#删除异常值
+draw_boxplot('quality', 'chlorides')+
+  coord_cartesian(ylim = c(0, 0.1))
+#分类统计
+tapply(ww$chlorides,ww$quality,summary) 
+```
+从中位数来看，箱线图显示质量评价与氯化物的相关关系也并不明显。
+
+```{r echo=FALSE}
+ggplot(aes(x=round(residual.sugar*5)/5,y=density),data = ww)+
+  geom_point(alpha=1/10,position = 'jitter')+
+  geom_line(stat = 'summary',fun.y=mean,color='red')+
+  geom_smooth(method = 'lm',color = 'blue')
+m1 <- lm(ww$residual.sugar~ww$density)
+mtable(m1)
+```
+基于R^2值，残糖仅解释了密度差异的70%，残糖含量与密度呈高度的正相关关系。
+
+## 双因素小结
+### 谈谈你在这部分调查中看到的一些关系。感兴趣的功能与数据集中的其他功能有何不同？
+双因素中 我从两个方向调查了调查了影响白葡萄酒质量评价的相关因素。
+
+第一，酒精度、密度与质量的关系。首先分析各变量间的相关性，与质量相关性最多的是酒精度，其次是密度。从中位数的变化观察来看，酒精度越高质量越好，呈正相关关系，密度虽与质量呈负相关关系，但不明显。最后，随着酒精度的增加，密度是逐渐下降的，呈负相关的线性关系。基于R^2值，酒精度解释了密度差异的60%。
+
+第二，对于大部分的白葡萄酒中质量与pH的关系，从中位数能够观察解释的是pH增加即酸性降低，质量评价越好。而从创造的新变量总酸度的中位数来看，总酸度的变化带来的质量评价变化并不明显。并且对于酸度与pH，基于R^2值，总酸度仅解释了pH差异的20%，不够理想。
+
+第三，氯化物等其他因素与质量评价相关性低，将不纳入分析范围。
+
+未来将把酒精度、ph这两个方向结合起来观察对质量评价的影响、
+### 观察到的其他功能之间的任何有趣的关系？
+残糖与密度呈高度的正相关。
+
+### 最强的关系是什么？
+白葡萄酒的质量与酒精度呈正相关。
+
+## 多因素分析
+```{r echo=FALSE,message=FALSE, warning=FALSE}
+library(RColorBrewer)
+ggplot(aes(x = alcohol, y = density, color = factor(quality)), data = ww) +
+  geom_point(alpha = 0.2, size = 2, position = "jitter")+
+  xlim(8.5,quantile(ww$alcohol,0.99)) +
+  ylim(0.987,quantile(ww$density,0.99)) +
+  scale_color_brewer()+
+  geom_smooth(method = "lm", se = FALSE,size=1) #绘制散点图忽略变量末端1%的数据并按因子分类添加回归线
+```
+
+质量、密度和酒精度这三个变量上，趋势清晰。
+即质量更好的白葡萄酒倾向于密度更低，酒精度数越高。
+
+```{r echo=FALSE,message=FALSE, warning=FALSE}
+ggplot(aes(x=pH,y=total.acid,color=quality),data = ww)+
+  geom_point()+
+  scale_color_brewer()
+```
+
+质量、pH和总体酸度上，趋势并不完全清晰，但存在着可观测的数据。
+即质量好的白葡萄酒酸度不高，且一般不会超过9g/dm3。
+```{r echo=FALSE,message=FALSE, warning=FALSE}
+ggplot(aes(x=alcohol,y=pH,color=quality),data = ww)+
+  geom_point()+
+  scale_color_brewer()
+```
+
+质量、pH和酒精度上，趋势主要由酒精度主导，pH值对质量评价影响不大。
+```{r echo=FALSE,message=FALSE, warning=FALSE}
+ggplot(aes(x=density,y=residual.sugar,color=quality),data = ww)+
+  geom_point(position = 'jitter')+
+  scale_x_continuous(lim=c(0.985,quantile(ww$density,0.99)))+
+  scale_y_continuous(lim=c(0,quantile(ww$residual.sugar,0.99)))+
+  scale_color_brewer()
+```
+
+质量、密度和残糖上，引导质量的趋势主要由密度主导，残糖对质量影响较小。
+
+## 多因素分析
+### 谈谈在这部分调查中看到的一些关系。
+相比较于pH和酸度，密度和酒精度这两个变量在影响质量评价上，趋势清晰。即质量更好的白葡萄酒倾向于密度更低，酒精度数越高。
+
+### 特征之间有什么有趣的交互？
+密度越大，酒精度数越低，残糖量越高。
+
+
+## 最终视图和总结
+### 图一
+```{r echo=FALSE,message=FALSE, warning=FALSE}
+ggplot(aes(x=quality),data = ww)+
+  geom_bar()+
+  labs(x='Quality Rank',y='Number of White Wine',title='White Wine Quality')+
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+### 说明一
+观察质量评分的结果分布，图形呈现单峰型,评分6呈现最大值即出现了2198次。高评分与低评分均出现较少（每个专家将葡萄酒的品质分为0（非常差）和10（非常优秀））。
+
+### 图二
+```{r echo=FALSE,message=FALSE, warning=FALSE}
+ggplot(ww,aes(factor(quality), alcohol)) + 
+  geom_jitter(alpha=0.3) +
+  geom_boxplot(alpha = .5,color = 'blue')+
+  stat_summary(fun.y = "mean", geom = "point", color = "red")+
+  labs(x='Quality Rank',y='Alcohol(%)',title='White Wine Alcohol by Quality')+
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+### 说明二
+从中位数观察酒精度与质量的关系，发现酒精度越高质量越好，呈正相关关系。
+
+### 图三
+```{r echo=FALSE,message=FALSE, warning=FALSE}
+ggplot(aes(x = alcohol, y = density, color = quality), data = ww) +
+  geom_point(alpha = 0.2, size = 2, position = "jitter")+
+  xlim(8.5,quantile(ww$alcohol,0.99)) +
+  ylim(0.987,quantile(ww$density,0.99)) +
+  scale_color_brewer()+
+  geom_smooth(method = "lm", se = FALSE,size=1)+
+  labs(x='Alcohol(%)',y='Density(g/cm3)',title='Quality by Density and Alcohol')+
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+### 说明三
+质量、密度和酒精度这三个变量上，趋势清晰。即质量评价越好的白葡萄酒倾向于密度更低，酒精度数越高。
+
+
+## 反思
+该白葡萄酒数据集包含了4898种白葡萄酒，1列索引值，11个量化每种酒化学成分的输入变量，以及一个基于感官数据的输出变量（质量评分）。
+我从理解数据集中的各个变量开始，然后我持续对变量间的关系进行了观察。
+
+在对质量评价影响较小的变量（氯化物、游离二氧化硫、二氧化硫总量、硫酸盐）排出后，发现酒精和密度对质量评价的影响最大，而酸度（对固定酸度、挥发性酸度、柠檬酸三者做了处理，即求和生成新变量总体酸度）、pH值与质量评价并没有呈现强烈的相关关系。并且酒精与酸碱指标（酸度、pH）也并不存在明显的相关性。
+最后总结出了一个重要结论是质量评价得分越高的白葡萄酒倾向于密度更低，酒精度越高。
+
+该数据集缺少了一些离散化的数据，例如产地、生产年份或储藏时长。这些变量都将有可能影响我目前研究发现的核心变量：密度和酒精度数。未来有可能，我将获取这些数据后，进一步完善对白葡萄酒质量评价的影响因素分析。
