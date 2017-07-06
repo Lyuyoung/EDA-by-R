@@ -8,5 +8,5 @@ Exploratory Data Analysis (EDA) is the numerical and graphical examination of da
 2. HTML file knitted from the RMD file using the knitr package
 3. CSV as the original data  
 
-Purpose For the Project£º
-#Which chemical properties influence the quality of white wines?
+Purpose For the Project:
+Which chemical properties influence the quality of white wines?
